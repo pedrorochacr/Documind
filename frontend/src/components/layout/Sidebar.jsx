@@ -1,46 +1,56 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderOpen, Users, Settings, Plus, HardDrive, Archive } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { LayoutDashboard, FolderOpen, Users, Settings, HardDrive, Archive } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { STORAGE } from '../../data/mockData'
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const usedPct = Math.round((STORAGE.used / STORAGE.total) * 100)
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
       <div className="sidebar-logo">
         <div className="sidebar-logo-inner">
           <div className="sidebar-logo-icon">
             <Archive size={18} color="#0f172a" />
           </div>
           <div>
-            <div className="sidebar-logo-name">Arquivo Digital</div>
-            <div className="sidebar-logo-sub">Gestão Corporativa</div>
+            <div className="sidebar-logo-name">Documind</div>
+            <div className="sidebar-logo-sub">Arquivo Digital</div>
           </div>
         </div>
       </div>
 
-      <button className="sidebar-new-btn" onClick={() => navigate('/explorer')}>
-        <Plus size={15} />
-        Novo Documento
-      </button>
-
-      <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+      <nav className="sidebar-nav" style={{ paddingTop: 16 }}>
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
           <LayoutDashboard size={16} />
           Dashboard
         </NavLink>
-        <NavLink to="/explorer" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+        <NavLink
+          to="/explorer"
+          className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
           <FolderOpen size={16} />
           Explorador
         </NavLink>
-        <NavLink to="/groups" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+        <NavLink
+          to="/groups"
+          className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
           <Users size={16} />
           Grupos
         </NavLink>
-        <NavLink to="/settings" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
           <Settings size={16} />
           Configurações
         </NavLink>

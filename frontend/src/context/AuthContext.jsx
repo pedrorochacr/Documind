@@ -2,10 +2,12 @@ import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
-const MOCK_USERS = [
-  { id: 1, name: 'Admin', email: 'admin@corporacao.com', password: 'admin123', role: 'Administrador', initials: 'A' },
-  { id: 2, name: 'João Silva', email: 'joao@corporacao.com', password: '123456', role: 'Gerente', initials: 'JS' },
-]
+function deriveName(email) {
+  const local = email.split('@')[0]
+  return local
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -18,17 +20,22 @@ export function AuthProvider({ children }) {
   })
 
   const login = async (email, password) => {
-    const found = MOCK_USERS.find(u => u.email === email && u.password === password)
-    if (found) {
-      const { password: _, ...userData } = found
-      setUser(userData)
-      localStorage.setItem('documind_user', JSON.stringify(userData))
-      return { success: true }
+    const name = deriveName(email)
+    const initials = name
+      .split(' ')
+      .slice(0, 2)
+      .map(w => w.charAt(0).toUpperCase())
+      .join('')
+    const userData = {
+      id: Date.now(),
+      name,
+      email,
+      role: 'Colaborador',
+      initials,
     }
-    return {
-      success: false,
-      error: 'A senha fornecida está incorreta para este usuário. Verifique e tente novamente.',
-    }
+    setUser(userData)
+    localStorage.setItem('documind_user', JSON.stringify(userData))
+    return { success: true }
   }
 
   const logout = () => {
