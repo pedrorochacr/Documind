@@ -22,11 +22,20 @@ const STATUS_MAP = {
 }
 
 const FILTERS = [
-  { id: 'all',    label: 'Todos',  dot: null },
-  { id: 'pdf',    label: 'PDF',    dot: '#dc2626' },
-  { id: 'img',    label: 'Imagem', dot: '#7c3aed' },
-  { id: 'doc',    label: 'Doc',    dot: '#2563eb' },
-  { id: 'folder', label: 'Pastas', dot: '#d97706' },
+  { id: 'all',      label: 'Todos',         dot: null },
+  { id: 'pdf',      label: 'PDF',           dot: '#dc2626' },
+  { id: 'doc',      label: 'Documentos',    dot: '#2563eb' },
+  { id: 'sheet',    label: 'Planilhas',     dot: '#16a34a' },
+  { id: 'slide',    label: 'Apresentações', dot: '#ea580c' },
+  { id: 'txt',      label: 'Texto',         dot: '#64748b' },
+  { id: 'img',      label: 'Imagens',       dot: '#7c3aed' },
+  { id: 'video',    label: 'Vídeos',        dot: '#db2777' },
+  { id: 'audio',    label: 'Áudios',        dot: '#0891b2' },
+  { id: 'code',     label: 'Código',        dot: '#0f172a' },
+  { id: 'json',     label: 'JSON/XML',      dot: '#14b8a6' },
+  { id: 'zip',      label: 'Compactados',   dot: '#ca8a04' },
+  { id: 'folder',   label: 'Pastas',        dot: '#d97706' },
+  { id: 'other',    label: 'Outros',        dot: '#6b7280' },
 ]
 
 function NewDocumentModal({ onClose, onSave }) {
