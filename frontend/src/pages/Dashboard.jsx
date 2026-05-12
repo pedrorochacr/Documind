@@ -65,8 +65,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Groups Widget */}
-        <div className="widget">
+        <div className="widget group-widget">
           <div className="widget-title">Grupos Frequentes</div>
           <div className="widget-subtitle">Acesso rápido aos departamentos</div>
           <div className="quick-groups-grid">
