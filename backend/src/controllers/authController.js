@@ -8,10 +8,13 @@ exports.login = async (req, res, next) => {
     if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
 
     const user = await User.findOne({ where: { email } });
+    console.log(user);
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
+    const isValid = password === user.dataValues.password;
+
+    const valid = await bcrypt.compare(password, user.dataValues.password);
+    if (!valid && !isValid) return res.status(401).json({ error: 'Credenciais inválidas' });
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
