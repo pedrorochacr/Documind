@@ -1,13 +1,7 @@
 import { createContext, useContext, useState } from 'react'
+import { api } from '../services/api'
 
 const AuthContext = createContext(null)
-
-function deriveName(email) {
-  const local = email.split('@')[0]
-  return local
-    .replace(/[._-]+/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase())
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -20,31 +14,27 @@ export function AuthProvider({ children }) {
   })
 
   const login = async (email, password) => {
-    const name = deriveName(email)
-    const initials = name
-      .split(' ')
-      .slice(0, 2)
-      .map(w => w.charAt(0).toUpperCase())
-      .join('')
-    const userData = {
-      id: Date.now(),
-      name,
-      email,
-      role: 'Colaborador',
-      initials,
-    }
-    setUser(userData)
-    localStorage.setItem('documind_user', JSON.stringify(userData))
+    const data = await api.post('/api/auth/login', { email, password })
+    localStorage.setItem('documind_token', data.token)
+    localStorage.setItem('documind_user', JSON.stringify(data.user))
+    setUser(data.user)
     return { success: true }
   }
 
   const logout = () => {
-    setUser(null)
+    localStorage.removeItem('documind_token')
     localStorage.removeItem('documind_user')
+    setUser(null)
+  }
+
+  const updateUser = (updated) => {
+    const merged = { ...user, ...updated }
+    localStorage.setItem('documind_user', JSON.stringify(merged))
+    setUser(merged)
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

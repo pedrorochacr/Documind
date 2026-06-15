@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { User, Lock, Bell, Shield, Database, Palette } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { api } from '../services/api'
 
 const NAV = [
   { id: 'profile',        label: 'Perfil',        Icon: User },
@@ -23,16 +24,28 @@ function Toggle({ on, onChange }) {
 }
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const [section, setSection] = useState('profile')
   const [notifs, setNotifs] = useState({ email: true, upload: true, comments: false, security: true })
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError('')
+    try {
+      const updated = await api.put(`/api/users/${user.id}`, { name, email })
+      updateUser(updated)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setSaveError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -86,9 +99,10 @@ export default function Settings() {
                 <input className="form-input" style={{ padding: '0 12px' }} type="text" defaultValue={user?.role} />
               </div>
 
+              {saveError && <div className="form-error" style={{ marginBottom: 8 }}>{saveError}</div>}
               <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
-                <button className="btn btn-primary" onClick={handleSave}>
-                  {saved ? 'Salvo!' : 'Salvar Alterações'}
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar Alterações'}
                 </button>
                 <button className="btn btn-secondary">Cancelar</button>
               </div>

@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Scale, Users, Building2, Megaphone, BarChart2, Cpu,
   FileText, FileSpreadsheet, Image, ArrowUpRight,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { GROUPS, FILES, STORAGE, formatDate } from '../data/mockData'
+import { api, normalizeDoc } from '../services/api'
+import { formatDate } from '../data/mockData'
 import StorageChart from '../components/dashboard/StorageChart'
 
 const GROUP_ICONS = {
@@ -29,8 +31,21 @@ const STATUS_MAP = {
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const recentFiles = FILES.slice(0, 3)
-  const quickGroups = GROUPS.slice(0, 4)
+  const [recentFiles, setRecentFiles] = useState([])
+  const [quickGroups, setQuickGroups] = useState([])
+  const [storage, setStorage] = useState({ used: 0, total: 850, unit: 'GB' })
+
+  useEffect(() => {
+    api.get('/api/documents').then(docs => {
+      setRecentFiles(docs.slice(0, 3).map(normalizeDoc))
+    }).catch(() => {})
+
+    api.get('/api/groups').then(groups => {
+      setQuickGroups(groups.slice(0, 4))
+    }).catch(() => {})
+
+    api.get('/api/documents/storage').then(setStorage).catch(() => {})
+  }, [])
 
   return (
     <>
@@ -40,26 +55,25 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-top-grid">
-        {/* Storage Widget */}
         <div className="widget">
           <div className="widget-title">Armazenamento</div>
           <div className="widget-subtitle">Uso do Espaço Corporativo</div>
           <div className="storage-widget-inner">
-            <StorageChart used={STORAGE.used} total={STORAGE.total} />
+            <StorageChart used={storage.used} total={storage.total} />
             <div className="storage-info-col">
               <div className="storage-stat">
                 <span className="storage-stat-dot" style={{ background: '#0f172a' }} />
                 <span className="storage-stat-label">Usado</span>
-                <span className="storage-stat-value">{STORAGE.used} {STORAGE.unit}</span>
+                <span className="storage-stat-value">{storage.used} {storage.unit}</span>
               </div>
               <div className="storage-stat">
                 <span className="storage-stat-dot" style={{ background: '#e2e8f0' }} />
                 <span className="storage-stat-label">Livre</span>
-                <span className="storage-stat-value">{STORAGE.total - STORAGE.used} {STORAGE.unit}</span>
+                <span className="storage-stat-value">{storage.total - storage.used} {storage.unit}</span>
               </div>
               <div className="storage-total">
-                <span>{STORAGE.total} {STORAGE.unit} Total</span>
-                <span>{STORAGE.used} {STORAGE.unit} Usado</span>
+                <span>{storage.total} {storage.unit} Total</span>
+                <span>{storage.used} {storage.unit} Usado</span>
               </div>
             </div>
           </div>
@@ -81,7 +95,7 @@ export default function Dashboard() {
                     <Icon size={20} color={g.color} />
                   </div>
                   <span className="quick-group-name">{g.name.split(' ')[0]}</span>
-                  <span className="quick-group-count">{g.files.toLocaleString('pt-BR')} docs</span>
+                  <span className="quick-group-count">{(g.files || 0).toLocaleString('pt-BR')} docs</span>
                 </div>
               )
             })}
@@ -89,7 +103,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Files */}
       <div className="widget">
         <div className="section-header">
           <div>
@@ -111,15 +124,20 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
+            {recentFiles.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>
+                  Nenhum arquivo ainda
+                </td>
+              </tr>
+            )}
             {recentFiles.map(file => {
               const cfg = FILE_TYPE_CONFIG[file.type] || FILE_TYPE_CONFIG.pdf
               return (
                 <tr key={file.id}>
                   <td>
                     <div className="file-cell">
-                      <div className={`file-cell-icon ${cfg.cls}`}>
-                        {cfg.label}
-                      </div>
+                      <div className={`file-cell-icon ${cfg.cls}`}>{cfg.label}</div>
                       <div>
                         <div className="file-cell-name">{file.name}</div>
                         <div className="file-cell-meta">Modificado por {file.modifiedBy}</div>

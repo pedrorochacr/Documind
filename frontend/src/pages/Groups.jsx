@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Scale, Users, Building2, Megaphone, BarChart2, Cpu,
   Plus, SlidersHorizontal, FileText, Edit3, Trash2, MoreHorizontal,
 } from 'lucide-react'
-import { GROUPS } from '../data/mockData'
+import { api } from '../services/api'
 import GroupModal from '../components/groups/GroupModal'
 
 const GROUP_ICONS = {
@@ -18,29 +18,32 @@ const ACCESS_CLS = {
 }
 
 export default function Groups() {
-  const [groups, setGroups]         = useState(GROUPS)
-  const [showModal, setShowModal]   = useState(false)
-  const [editGroup, setEditGroup]   = useState(null)
-  const [menuId, setMenuId]         = useState(null)
+  const [groups, setGroups]       = useState([])
+  const [showModal, setShowModal] = useState(false)
+  const [editGroup, setEditGroup] = useState(null)
+  const [menuId, setMenuId]       = useState(null)
+
+  useEffect(() => {
+    api.get('/api/groups').then(setGroups).catch(() => {})
+  }, [])
 
   const openCreate = () => { setEditGroup(null); setShowModal(true) }
   const openEdit   = (g) => { setEditGroup(g); setShowModal(true); setMenuId(null) }
 
-  const handleSave = (data) => {
+  const handleSave = async (data) => {
     if (editGroup) {
-      setGroups(prev => prev.map(g => g.id === editGroup.id ? { ...g, ...data } : g))
+      const updated = await api.put(`/api/groups/${editGroup.id}`, data)
+      setGroups(prev => prev.map(g => g.id === editGroup.id ? updated : g))
     } else {
-      setGroups(prev => [...prev, {
-        id: Date.now(), icon: 'users',
-        files: 0, members: 0,
-        ...data,
-      }])
+      const created = await api.post('/api/groups', data)
+      setGroups(prev => [...prev, created])
     }
     setShowModal(false)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Excluir este grupo?')) {
+      await api.delete(`/api/groups/${id}`)
       setGroups(prev => prev.filter(g => g.id !== id))
       setMenuId(null)
     }
@@ -83,11 +86,11 @@ export default function Groups() {
               <div className="group-card-footer">
                 <span className="group-card-stat">
                   <FileText size={12} />
-                  {group.files}
+                  {group.files ?? 0}
                 </span>
                 <span className="group-card-stat">
                   <Users size={12} />
-                  {group.members}
+                  {group.members ?? 0}
                 </span>
                 <div className="group-card-footer-right" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span className={`access-badge ${ACCESS_CLS[group.access] || 'access-interno'}`}>

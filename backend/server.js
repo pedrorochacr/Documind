@@ -28,6 +28,13 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
 });
 
-sequelize.sync().then(() => {
-  app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-});
+sequelize
+  .authenticate()
+  .then(() => {
+    console.log('Conexão com o banco estabelecida.');
+    app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  })
+  .catch(err => {
+    console.error('Erro ao conectar ao banco:', err.message);
+    process.exit(1);
+  });

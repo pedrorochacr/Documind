@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   CloudUpload, List, LayoutGrid, ChevronRight,
   Folder, MoreHorizontal, ArrowUpDown, Plus, X,
   FileText, FileSpreadsheet, Image as ImageIcon,
 } from 'lucide-react'
-import { FILES, FOLDERS, GROUPS, formatDate } from '../data/mockData'
+import { api, normalizeDoc } from '../services/api'
+import { formatDate } from '../data/mockData'
 import FileDetails from '../components/explorer/FileDetails'
 
 const TYPE_CONFIG = {
@@ -25,7 +26,7 @@ const FILTERS = [
   { id: 'all',      label: 'Todos',         dot: null },
   { id: 'pdf',      label: 'PDF',           dot: '#dc2626' },
   { id: 'doc',      label: 'Documentos',    dot: '#2563eb' },
-  { id: 'sheet',    label: 'Planilhas',     dot: '#16a34a' },
+  { id: 'xls',      label: 'Planilhas',     dot: '#16a34a' },
   { id: 'slide',    label: 'Apresentações', dot: '#ea580c' },
   { id: 'txt',      label: 'Texto',         dot: '#64748b' },
   { id: 'img',      label: 'Imagens',       dot: '#7c3aed' },
@@ -38,34 +39,34 @@ const FILTERS = [
   { id: 'other',    label: 'Outros',        dot: '#6b7280' },
 ]
 
-function NewDocumentModal({ onClose, onSave }) {
-  const [docName, setDocName]   = useState('')
-  const [docType, setDocType]   = useState('pdf')
-  const [group, setGroup]       = useState(GROUPS[0].name)
-  const [desc, setDesc]         = useState('')
-  const [errors, setErrors]     = useState({})
-  const fileRef                 = useRef()
+function NewDocumentModal({ groups, onClose, onSave }) {
+  const [docName, setDocName]       = useState('')
+  const [docType, setDocType]       = useState('pdf')
+  const [groupId, setGroupId]       = useState(groups[0]?.id || '')
+  const [errors, setErrors]         = useState({})
+  const [uploading, setUploading]   = useState(false)
+  const fileRef                     = useRef()
   const [pickedFile, setPickedFile] = useState(null)
 
   const TypeIcon = { pdf: FileText, doc: FileText, xls: FileSpreadsheet, img: ImageIcon }[docType] || FileText
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const e = {}
     if (!docName.trim()) e.name = 'Nome é obrigatório'
     if (Object.keys(e).length) { setErrors(e); return }
-    onSave({
-      id: Date.now(),
-      name: `${docName.trim()}.${docType}`,
-      type: docType,
-      group,
-      size: pickedFile ? `${(pickedFile.size / 1048576).toFixed(1)} MB` : '0 KB',
-      modified: new Date().toISOString(),
-      modifiedBy: 'Você',
-      created: new Date().toISOString(),
-      owner: 'Você',
-      status: 'Em Revisão',
-      path: ['Arquivo Digital'],
-    })
+
+    const formData = new FormData()
+    if (pickedFile) formData.append('file', pickedFile)
+    formData.append('name', `${docName.trim()}.${docType}`)
+    if (groupId) formData.append('groupId', groupId)
+    formData.append('status', 'Em Revisão')
+
+    setUploading(true)
+    try {
+      await onSave(formData)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -77,7 +78,6 @@ function NewDocumentModal({ onClose, onSave }) {
         </div>
 
         <div className="modal-body">
-          {/* Upload area */}
           <div
             style={{
               border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
@@ -96,9 +96,9 @@ function NewDocumentModal({ onClose, onSave }) {
                   setPickedFile(f)
                   if (!docName) setDocName(f.name.replace(/\.[^.]+$/, ''))
                   const ext = f.name.split('.').pop().toLowerCase()
-                  if (['pdf'].includes(ext)) setDocType('pdf')
+                  if (ext === 'pdf') setDocType('pdf')
                   else if (['doc', 'docx'].includes(ext)) setDocType('doc')
-                  else if (['xls', 'xlsx'].includes(ext)) setDocType('xls')
+                  else if (['xls', 'xlsx', 'csv'].includes(ext)) setDocType('xls')
                   else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) setDocType('img')
                 }
               }}
@@ -113,12 +113,8 @@ function NewDocumentModal({ onClose, onSave }) {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Selecionar arquivo
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  ou arraste aqui para upload
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Selecionar arquivo</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ou arraste aqui para upload</div>
               </>
             )}
           </div>
@@ -155,29 +151,19 @@ function NewDocumentModal({ onClose, onSave }) {
               <label className="form-label">Grupo</label>
               <select
                 style={{ width: '100%', height: 40, border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 13, fontFamily: 'inherit', background: 'white', color: 'var(--text-primary)', outline: 'none' }}
-                value={group}
-                onChange={e => setGroup(e.target.value)}
+                value={groupId}
+                onChange={e => setGroupId(e.target.value)}
               >
-                {GROUPS.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Descrição <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opcional)</span></label>
-            <textarea
-              style={{ width: '100%', height: 70, border: '1.5px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', color: 'var(--text-primary)', outline: 'none' }}
-              placeholder="Descreva o documento..."
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-            />
           </div>
         </div>
 
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleCreate}>
-            <Plus size={14} /> Criar Documento
+          <button className="btn btn-primary" onClick={handleCreate} disabled={uploading}>
+            <Plus size={14} /> {uploading ? 'Enviando...' : 'Criar Documento'}
           </button>
         </div>
       </div>
@@ -186,65 +172,97 @@ function NewDocumentModal({ onClose, onSave }) {
 }
 
 export default function Explorer() {
-  const [view, setView]               = useState('list')
-  const [filter, setFilter]           = useState('all')
-  const [dragging, setDragging]       = useState(false)
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [view, setView]                   = useState('list')
+  const [filter, setFilter]               = useState('all')
+  const [dragging, setDragging]           = useState(false)
+  const [selectedFile, setSelectedFile]   = useState(null)
   const [currentFolder, setCurrentFolder] = useState(null)
-  const [toast, setToast]             = useState(null)
-  const [files, setFiles]             = useState(FILES)
-  const [showNewModal, setShowNewModal] = useState(false)
-  const fileInputRef                  = useRef()
+  const [toast, setToast]                 = useState(null)
+  const [files, setFiles]                 = useState([])
+  const [folders, setFolders]             = useState([])
+  const [groups, setGroups]               = useState([])
+  const [showNewModal, setShowNewModal]   = useState(false)
+  const fileInputRef                      = useRef()
+
+  useEffect(() => {
+    api.get('/api/documents').then(docs => setFiles(docs.map(normalizeDoc))).catch(() => {})
+    api.get('/api/folders').then(setFolders).catch(() => {})
+    api.get('/api/groups').then(setGroups).catch(() => {})
+  }, [])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault()
     setDragging(false)
     const dropped = Array.from(e.dataTransfer.files)
-    if (dropped.length) showToast(`${dropped.length} arquivo(s) adicionado(s)!`, 'success')
-  }
-
-  const handleFileInput = (e) => {
-    const picked = Array.from(e.target.files)
-    if (picked.length) showToast(`${picked.length} arquivo(s) adicionado(s)!`, 'success')
-  }
-
-  const handleDelete = (file) => {
-    if (window.confirm(`Excluir "${file.name}"?`)) {
-      setFiles(prev => prev.filter(f => f.id !== file.id))
-      setSelectedFile(null)
-      showToast('Arquivo excluído.')
+    if (!dropped.length) return
+    let count = 0
+    for (const f of dropped) {
+      try {
+        const formData = new FormData()
+        formData.append('file', f)
+        formData.append('name', f.name)
+        formData.append('status', 'Em Revisão')
+        const doc = await api.upload('/api/documents', formData)
+        setFiles(prev => [normalizeDoc(doc), ...prev])
+        count++
+      } catch {}
     }
+    if (count) showToast(`${count} arquivo(s) enviado(s)!`, 'success')
   }
 
-  const handleNewDoc = (newFile) => {
-    setFiles(prev => [newFile, ...prev])
+  const handleFileInput = async (e) => {
+    const picked = Array.from(e.target.files)
+    if (!picked.length) return
+    let count = 0
+    for (const f of picked) {
+      try {
+        const formData = new FormData()
+        formData.append('file', f)
+        formData.append('name', f.name)
+        formData.append('status', 'Em Revisão')
+        const doc = await api.upload('/api/documents', formData)
+        setFiles(prev => [normalizeDoc(doc), ...prev])
+        count++
+      } catch {}
+    }
+    if (count) showToast(`${count} arquivo(s) enviado(s)!`, 'success')
+  }
+
+  const handleDelete = async (file) => {
+    if (!window.confirm(`Excluir "${file.name}"?`)) return
+    await api.delete(`/api/documents/${file.id}`)
+    setFiles(prev => prev.filter(f => f.id !== file.id))
+    setSelectedFile(null)
+    showToast('Arquivo excluído.')
+  }
+
+  const handleNewDoc = async (formData) => {
+    const doc = await api.upload('/api/documents', formData)
+    const normalized = normalizeDoc(doc)
+    setFiles(prev => [normalized, ...prev])
     setShowNewModal(false)
-    showToast(`"${newFile.name}" criado com sucesso!`, 'success')
+    showToast(`"${normalized.name}" criado com sucesso!`, 'success')
   }
-
-  const folderFiles = currentFolder
-    ? files.filter(f => f.path?.includes(currentFolder.name))
-    : null
 
   const filtered = (() => {
-    const list = folderFiles || files
+    const list = currentFolder
+      ? files.filter(f => f.folderId === currentFolder.id)
+      : files
     if (filter === 'all') return list
-    if (filter === 'folder') return FOLDERS
+    if (filter === 'folder') return []
     return list.filter(f => f.type === filter)
   })()
 
-  const breadcrumbs = currentFolder
-    ? ['Documind', currentFolder.name]
-    : ['Documind']
+  const breadcrumbs = currentFolder ? ['Documind', currentFolder.name] : ['Documind']
+  const showFolders = !currentFolder && filter === 'all'
 
   return (
     <>
-      {/* Page header */}
       <div className="page-header">
         <div className="page-header-row">
           <div>
@@ -267,7 +285,6 @@ export default function Explorer() {
         </div>
       </div>
 
-      {/* Breadcrumbs */}
       {breadcrumbs.length > 1 && (
         <div className="breadcrumb">
           {breadcrumbs.map((b, i) => (
@@ -284,7 +301,6 @@ export default function Explorer() {
         </div>
       )}
 
-      {/* Drop Zone */}
       {!currentFolder && (
         <div
           className={`dropzone${dragging ? ' dragging' : ''}`}
@@ -300,7 +316,6 @@ export default function Explorer() {
         </div>
       )}
 
-      {/* Filters */}
       <div className="file-filters">
         {FILTERS.map(f => (
           <button
@@ -316,7 +331,6 @@ export default function Explorer() {
         ))}
       </div>
 
-      {/* File List */}
       {view === 'list' ? (
         <div className="files-table-wrap">
           <table className="files-table">
@@ -333,7 +347,7 @@ export default function Explorer() {
               </tr>
             </thead>
             <tbody>
-              {!currentFolder && filter === 'all' && FOLDERS.map(folder => (
+              {showFolders && folders.map(folder => (
                 <tr key={folder.id} onClick={() => setCurrentFolder(folder)}>
                   <td>
                     <div className="file-name-cell">
@@ -343,11 +357,9 @@ export default function Explorer() {
                       </div>
                     </div>
                   </td>
-                  <td className="col-hide-sm">{folder.modified}</td>
+                  <td className="col-hide-sm">{formatDate(folder.updatedAt)}</td>
                   <td className="col-hide-sm">—</td>
-                  <td>
-                    <button className="action-btn"><MoreHorizontal size={14} /></button>
-                  </td>
+                  <td><button className="action-btn"><MoreHorizontal size={14} /></button></td>
                 </tr>
               ))}
               {filtered.map(file => (
@@ -372,7 +384,7 @@ export default function Explorer() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && !currentFolder && (
+              {filtered.length === 0 && !showFolders && (
                 <tr>
                   <td colSpan={4}>
                     <div className="empty-state">
@@ -387,13 +399,13 @@ export default function Explorer() {
         </div>
       ) : (
         <div className="files-grid">
-          {!currentFolder && filter === 'all' && FOLDERS.map(folder => (
+          {showFolders && folders.map(folder => (
             <div key={folder.id} className="file-grid-card" onClick={() => setCurrentFolder(folder)}>
               <div className="file-grid-icon file-badge-folder">
                 <Folder size={20} color="#d97706" />
               </div>
               <div className="file-grid-name">{folder.name}</div>
-              <div className="file-grid-meta">{folder.modified}</div>
+              <div className="file-grid-meta">{formatDate(folder.updatedAt)}</div>
             </div>
           ))}
           {filtered.map(file => {
@@ -430,6 +442,7 @@ export default function Explorer() {
 
       {showNewModal && (
         <NewDocumentModal
+          groups={groups}
           onClose={() => setShowNewModal(false)}
           onSave={handleNewDoc}
         />
