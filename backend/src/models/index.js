@@ -1,19 +1,54 @@
 const sequelize = require('../config/database');
+
 const User = require('./User');
 const Group = require('./Group');
 const Document = require('./Document');
 const Folder = require('./Folder');
 
-Group.hasMany(Document, { foreignKey: 'groupId', as: 'documents' });
-Document.belongsTo(Group, { foreignKey: 'groupId', as: 'group' });
+Group.hasMany(Document, {
+  foreignKey: 'groupId',
+  as: 'documents',
+});
 
-User.hasMany(Document, { foreignKey: 'ownerId', as: 'documents' });
-Document.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+Document.belongsTo(Group, {
+  foreignKey: 'groupId',
+  as: 'group',
+});
 
-Folder.hasMany(Document, { foreignKey: 'folderId', as: 'documents' });
-Document.belongsTo(Folder, { foreignKey: 'folderId', as: 'folder' });
+User.hasMany(Document, {
+  foreignKey: 'ownerId',
+  as: 'documents',
+});
 
-Folder.hasMany(Folder, { foreignKey: 'parentId', as: 'children' });
-Folder.belongsTo(Folder, { foreignKey: 'parentId', as: 'parent' });
+Document.belongsTo(User, {
+  foreignKey: 'ownerId',
+  as: 'owner',
+});
 
-module.exports = { sequelize, User, Group, Document, Folder };
+Folder.hasMany(Document, {
+  foreignKey: 'folderId',
+  as: 'documents',
+});
+
+Document.belongsTo(Folder, {
+  foreignKey: 'folderId',
+  as: 'folder',
+});
+
+Folder.hasMany(Folder, {
+  foreignKey: 'parentId',
+  as: 'children',
+});
+
+Folder.belongsTo(Folder, {
+  foreignKey: 'parentId',
+  as: 'parent',
+});
+
+module.exports = {
+  sequelize,
+  User,
+  Group,
+  Document,
+  Folder,
+};
